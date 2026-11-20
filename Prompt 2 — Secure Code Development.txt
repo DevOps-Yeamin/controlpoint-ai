@@ -1,0 +1,23 @@
+Act as a senior Python application security engineer.
+
+Develop the ControlPoint-AI security enforcement engine using Python, Pydantic, and FastAPI.
+
+Implement a minimal, modular prototype with:
+- Structured agent and tool-call request validation.
+- Agent identity and permission checks.
+- Explicit allow, deny, and redact decisions.
+- Resource-level and field-level access control.
+- Default-deny authorization behavior.
+- Request and response inspection.
+- Security audit logging.
+
+Requirements:
+- Follow secure coding practices.
+- Validate all untrusted inputs.
+- Avoid hardcoded credentials and secrets.
+- Use synthetic test data only.
+- Include unit and integration tests.
+- Handle exceptions safely.
+- Document limitations and assumptions.
+
+Do not claim a security feature is implemented unless the code and tests demonstrate it.

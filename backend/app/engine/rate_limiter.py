@@ -1,0 +1,55 @@
+import time
+from typing import Dict, List, Tuple
+from collections import defaultdict
+import threading
+
+class RateLimiter:
+    """In-memory sliding window rate limiter per agent identity."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        # agent_id -> list of timestamps
+        self._timestamps: Dict[str, List[float]] = defaultdict(list)
+
+    def check_limit(
+        self,
+        agent_id: str,
+        max_requests: int = 15,
+        window_seconds: int = 60
+    ) -> Tuple[bool, int, float]:
+        """
+        Check if request is allowed under rate limits.
+        
+        Returns:
+            Tuple of:
+            - is_allowed (bool)
+            - remaining_requests (int)
+            - reset_in_seconds (float)
+        """
+        with self._lock:
+            now = time.time()
+            cutoff = now - window_seconds
+            
+            # Prune old timestamps
+            self._timestamps[agent_id] = [t for t in self._timestamps[agent_id] if t > cutoff]
+            current_count = len(self._timestamps[agent_id])
+
+            if current_count >= max_requests:
+                oldest = self._timestamps[agent_id][0]
+                retry_after = max(0.1, (oldest + window_seconds) - now)
+                return False, 0, retry_after
+
+            # Register current request
+            self._timestamps[agent_id].append(now)
+            remaining = max(0, max_requests - (current_count + 1))
+            return True, remaining, 0.0
+
+    def reset(self, agent_id: str = None):
+        """Reset limits for testing."""
+        with self._lock:
+            if agent_id:
+                self._timestamps.pop(agent_id, None)
+            else:
+                self._timestamps.clear()
+
+# Global singleton
+rate_limiter = RateLimiter()

@@ -1,0 +1,30 @@
+services:
+  controlpoint-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: industrysphere/controlpoint-ai:latest
+    container_name: controlpoint-ai-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PROJECT_NAME=ControlPoint-AI
+      - ORGANIZATION=IndustrySphere AI
+      - TAGLINE=Control What Your AI Agents Can Do.
+      - DATABASE_URL=sqlite:////app/data/controlpoint.db
+      - SECRET_KEY=cp-prod-secret-change-in-production-random-key-64chars
+      - RATE_LIMIT_REQUESTS=20
+      - RATE_LIMIT_WINDOW_SECONDS=60
+    volumes:
+      - controlpoint_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  controlpoint_data:
+    driver: local

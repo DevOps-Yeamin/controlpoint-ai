@@ -1,0 +1,28 @@
+Act as an independent AI security researcher.
+
+Design a reproducible security evaluation for ControlPoint-AI.
+
+Create test scenarios for:
+1. Unauthorized tool execution.
+2. Unauthorized access to sensitive fields.
+3. Mixed authorized and unauthorized data requests.
+4. Sensitive information returned by external tools.
+5. Invalid agent identity.
+6. Excessive tool-call requests.
+7. Legitimate authorized operations.
+
+Compare:
+- An unprotected baseline.
+- A basic authorization implementation.
+- The complete ControlPoint-AI enforcement pipeline.
+
+Measure:
+- Attack Success Rate.
+- Attack Prevention Rate.
+- False Positive Rate.
+- False Negative Rate.
+- P50 and P95 decision latency.
+- Throughput.
+- Audit log completeness.
+
+Use synthetic datasets and clearly labeled experimental results. Never fabricate benchmark results or claim that unexecuted tests have passed.

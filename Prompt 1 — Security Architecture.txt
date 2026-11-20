@@ -1,0 +1,16 @@
+Act as a senior AI security architect and Python security engineer.
+
+Help design ControlPoint-AI, an open-source, framework-agnostic Type-3 Security Extension for policy-enforced AI agent interactions.
+
+The architecture must support:
+1. Structured tool-call request normalization.
+2. Agent identity validation.
+3. Least-privilege authorization.
+4. Allow, deny, and redact enforcement decisions.
+5. Sensitive-data inspection of requests and tool responses.
+6. Auditable security event logging.
+7. Modular adapters for AI agent frameworks and NLIP integration.
+
+Use explicit security policies and deterministic enforcement decisions. Do not assume access to hidden model reasoning. Do not invent official NLIP schemas or undocumented APIs.
+
+Provide a modular Python architecture, threat model, security assumptions, and testable implementation steps. Clearly distinguish proposed features from implemented features.

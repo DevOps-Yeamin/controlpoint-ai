@@ -1,0 +1,54 @@
+# Environment variables & secrets
+.env
+*.env
+*.pem
+*.key
+secrets/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python cache & virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js & Vite
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+npm-debug.log*
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
