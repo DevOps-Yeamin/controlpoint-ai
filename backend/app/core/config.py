@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     
     # Security & DB
     SECRET_KEY: str = "controlpoint-insecure-secret-key-change-in-production-123456"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/controlpoint.db")
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "sqlite:////tmp/controlpoint.db" if (os.getenv("VERCEL") == "1" or "VERCEL" in os.environ) else f"sqlite:///{BASE_DIR}/controlpoint.db"
+    )
     
     # Rate Limiting Defaults
     RATE_LIMIT_REQUESTS: int = 15

@@ -1,0 +1,12 @@
+[project]
+name = "controlpoint-ai"
+version = "1.0.0"
+description = "ControlPoint-AI: A Framework-Agnostic Type-3 Security Extension for Policy-Enforced AI Agent Interactions"
+readme = "README.md"
+requires-python = ">=3.12"
+
+[tool.fastapi]
+entrypoint = "backend.app.main:app"
+
+[tool.vercel]
+entrypoint = "backend/app/main.py:app"

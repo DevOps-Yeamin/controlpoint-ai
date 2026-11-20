@@ -5,7 +5,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from backend.app.database import Base, get_db
-from backend.app.main import app
+from backend.app.main import app as main_app
 from backend.app.engine.seed import seed_database
 from backend.app.engine.rate_limiter import rate_limiter
 
@@ -38,8 +38,8 @@ def client(db_session):
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
+    main_app.dependency_overrides[get_db] = override_get_db
     rate_limiter.reset()
-    with TestClient(app) as test_client:
+    with TestClient(main_app) as test_client:
         yield test_client
-    app.dependency_overrides.clear()
+    main_app.dependency_overrides.clear()
