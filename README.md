@@ -4,7 +4,7 @@
 > *A Framework-Agnostic Type-3 Security Extension for Policy-Enforced AI Agent Interactions.*  
 > Developed by **IndustrySphere AI** • Licensed under **Apache-2.0**
 
-[![ControlPoint-AI CI](https://github.com/industrysphere/controlpoint-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/industrysphere/controlpoint-ai/actions)
+[![ControlPoint-AI CI](https://github.com/DevOps-Yeamin/controlpoint-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/DevOps-Yeamin/controlpoint-ai/actions)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -118,7 +118,7 @@ ControlPoint-AI implements an adapter utilizing the official **`nlip_sdk` (v0.1.
 
 ```powershell
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/controlpoint-ai.git
+git clone https://github.com/DevOps-Yeamin/controlpoint-ai.git
 cd controlpoint-ai
 
 # Install Python requirements
