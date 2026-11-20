@@ -141,7 +141,7 @@ cd ..
 
 ```powershell
 # Run backend server (serves both API and compiled React dashboard)
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 - **Interactive Cybersecurity Dashboard**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
