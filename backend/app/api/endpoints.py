@@ -4,7 +4,7 @@ import csv
 import io
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -29,7 +29,12 @@ from backend.app.schemas.schemas import (
     BaselineMetric
 )
 from backend.app.engine.normalizer import RequestNormalizer
-from backend.app.engine.identity import IdentityValidator, generate_agent_key, hash_api_key
+from backend.app.engine.identity import (
+    IdentityValidator,
+    generate_agent_key,
+    hash_api_key,
+    verify_api_key_hash
+)
 from backend.app.engine.rate_limiter import rate_limiter
 from backend.app.engine.policy_engine import PolicyEngine
 from backend.app.engine.response_inspector import ResponseInspector
@@ -37,6 +42,7 @@ from backend.app.engine.audit import AuditLogger
 from backend.app.engine.nlip_adapter import NLIPAdapter
 from backend.app.tools.hr_tool import EmployeeDirectoryTool
 from backend.app.core.config import settings
+from backend.app.core.auth import verify_admin_access
 
 router = APIRouter()
 
@@ -58,13 +64,17 @@ def health_check(db: Session = Depends(get_db)):
         "tagline": settings.TAGLINE,
         "version": settings.VERSION,
         "database": db_status,
+        "environment": settings.ENVIRONMENT,
         "nlip_sdk_available": NLIPAdapter.is_available(),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 # ----------------- Dashboard -----------------
 @router.get("/dashboard/summary", response_model=DashboardSummary, tags=["Dashboard"])
-def get_dashboard_summary(db: Session = Depends(get_db)):
+def get_dashboard_summary(
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
     """Retrieve security enforcement metrics, audit stats, and decision analytics."""
     total_logs = db.query(AuditLog).count()
     allowed = db.query(AuditLog).filter(AuditLog.decision == DecisionEnum.ALLOW.value).count()
@@ -118,16 +128,23 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         }
     )
 
-# ----------------- Agents Management -----------------
+# ----------------- Agents Management (Protected by Admin Auth) -----------------
 @router.get("/agents", response_model=List[AgentResponse], tags=["Agent Management"])
-def list_agents(db: Session = Depends(get_db)):
-    """List all registered autonomous agents."""
+def list_agents(
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: List all registered autonomous agents without exposing secret keys."""
     agents = db.query(Agent).all()
     return agents
 
 @router.post("/agents", response_model=AgentCreateResult, tags=["Agent Management"])
-def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
-    """Register a new autonomous agent with a unique cryptographic API key."""
+def create_agent(
+    payload: AgentCreate,
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Register a new autonomous agent with a unique cryptographic API key."""
     existing = db.query(Agent).filter(Agent.id == payload.id).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Agent with ID '{payload.id}' already exists")
@@ -165,17 +182,48 @@ def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
     )
 
 @router.get("/agents/{agent_id}", response_model=AgentResponse, tags=["Agent Management"])
-def get_agent(agent_id: str, db: Session = Depends(get_db)):
-    """Retrieve details for a specific registered agent."""
+def get_agent(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Retrieve details for a specific registered agent."""
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return agent
 
-# ----------------- Policies Management -----------------
+@router.post("/agents/{agent_id}/revoke", tags=["Agent Management"])
+def revoke_agent_credentials(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Revoke an agent's active credentials immediately."""
+    success, msg = IdentityValidator.revoke_agent(db, agent_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=msg)
+    return {"status": "success", "agent_id": agent_id, "is_active": False, "detail": msg}
+
+@router.post("/agents/{agent_id}/rotate-key", tags=["Agent Management"])
+def rotate_agent_credentials(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Rotate an agent's API key with a fresh salt and invalidate the previous key."""
+    new_raw_key, msg = IdentityValidator.rotate_agent_key(db, agent_id)
+    if not new_raw_key:
+        raise HTTPException(status_code=404, detail=msg)
+    return {"status": "success", "agent_id": agent_id, "new_api_key": new_raw_key, "detail": msg}
+
+# ----------------- Policies Management (Protected by Admin Auth) -----------------
 @router.get("/policies", response_model=List[PolicyResponse], tags=["Policy Management"])
-def list_policies(db: Session = Depends(get_db)):
-    """List all configured Type-3 security policies."""
+def list_policies(
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: List all configured Type-3 security policies."""
     policies = db.query(Policy).all()
     results = []
     for p in policies:
@@ -198,8 +246,12 @@ def list_policies(db: Session = Depends(get_db)):
     return results
 
 @router.post("/policies", response_model=PolicyResponse, tags=["Policy Management"])
-def create_policy(payload: PolicyCreate, db: Session = Depends(get_db)):
-    """Create a new explicit Type-3 security policy."""
+def create_policy(
+    payload: PolicyCreate,
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Create a new explicit Type-3 security policy."""
     existing = db.query(Policy).filter(Policy.id == payload.id).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Policy with ID '{payload.id}' already exists")
@@ -236,7 +288,7 @@ def create_policy(payload: PolicyCreate, db: Session = Depends(get_db)):
         created_at=new_policy.created_at
     )
 
-# ----------------- Security Evaluation & Execution -----------------
+# ----------------- Security Evaluation & Execution (Public Playground / Agent Invocation) -----------------
 @router.post("/security/evaluate", response_model=SecurityEvaluateResponse, tags=["Security Engine"])
 def evaluate_tool_request(req: SecurityEvaluateRequest, db: Session = Depends(get_db)):
     """
@@ -638,16 +690,17 @@ def execute_tool_request(req: SecurityExecuteRequest, db: Session = Depends(get_
         execution_time_ms=round(elapsed, 2)
     )
 
-# ----------------- Audit Logs -----------------
+# ----------------- Audit Logs (Protected by Admin Auth) -----------------
 @router.get("/audit-logs", response_model=List[AuditLogResponse], tags=["Audit"])
 def get_audit_logs(
     agent_id: Optional[str] = None,
     decision: Optional[str] = None,
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
 ):
-    """Query tamper-evident audit logs with optional filtering."""
+    """Admin-only: Query tamper-evident audit logs with optional filtering."""
     query = db.query(AuditLog)
     if agent_id:
         query = query.filter(AuditLog.agent_id == agent_id)
@@ -680,8 +733,11 @@ def get_audit_logs(
     return results
 
 @router.get("/audit-logs/verify-chain", response_model=AuditChainVerifyResponse, tags=["Audit"])
-def verify_audit_hash_chain(db: Session = Depends(get_db)):
-    """Verifies cryptographic hash-chain integrity across all audit records."""
+def verify_audit_hash_chain(
+    db: Session = Depends(get_db),
+    admin: str = Depends(verify_admin_access)
+):
+    """Admin-only: Verifies cryptographic hash-chain integrity across all audit records."""
     return AuditLogger.verify_chain(db)
 
 # ----------------- Security Testing & 15 Benchmark Scenarios -----------------
@@ -860,12 +916,97 @@ SCENARIOS_SPEC = [
 ]
 
 def run_scenarios(db: Session) -> BenchmarkReport:
-    """Execute all 15 security benchmark scenarios deterministically."""
+    """
+    Execute all 15 security benchmark scenarios deterministically.
+    Collects actual dynamic baseline comparison metrics without static approximations.
+    """
     results: List[BenchmarkScenarioResult] = []
-    latencies: List[float] = []
+    latencies_c: List[float] = []
+    latencies_a: List[float] = []
+    latencies_b: List[float] = []
+
+    # Counters for Baseline A (Unprotected)
+    base_a_attacks = 0
+    base_a_attacks_succeeded = 0
+    base_a_legit = 0
+    base_a_false_positives = 0
+
+    # Counters for Baseline B (Basic Authorization)
+    base_b_attacks = 0
+    base_b_attacks_succeeded = 0
+    base_b_legit = 0
+    base_b_false_positives = 0
+
+    # Counters for Baseline C (ControlPoint-AI)
+    base_c_attacks = 0
+    base_c_attacks_prevented = 0
+    base_c_legit = 0
+    base_c_false_positives = 0
 
     for sc in SCENARIOS_SPEC:
-        start = time.perf_counter()
+        is_attack = sc["expected_decision"] in ["DENY", "REDACT", "THROTTLE"]
+        if is_attack:
+            base_a_attacks += 1
+            base_b_attacks += 1
+            base_c_attacks += 1
+        else:
+            base_a_legit += 1
+            base_b_legit += 1
+            base_c_legit += 1
+
+        params = sc.get("parameters", {"department": "Engineering"})
+        if sc.get("force_leak"):
+            params = dict(params)
+            params["force_leak"] = True
+
+        # --- Baseline A Execution (Direct tool call, zero checks) ---
+        t0_a = time.perf_counter()
+        try:
+            raw_a = EmployeeDirectoryTool.execute(
+                db=db,
+                operation=sc["operation"],
+                parameters=params,
+                requested_fields=sc["requested_fields"],
+                force_leak_unauthorized_data=bool(sc.get("force_leak", False))
+            )
+            lat_a = (time.perf_counter() - t0_a) * 1000
+            latencies_a.append(lat_a)
+            if is_attack:
+                base_a_attacks_succeeded += 1
+        except Exception:
+            lat_a = (time.perf_counter() - t0_a) * 1000
+            latencies_a.append(lat_a)
+            if not is_attack:
+                base_a_false_positives += 1
+
+        # --- Baseline B Execution (Basic Auth only: no argument/rate/redaction checks) ---
+        t0_b = time.perf_counter()
+        agent_b, auth_err = IdentityValidator.validate(db, sc["agent_id"], sc["api_key"])
+        if not agent_b:
+            lat_b = (time.perf_counter() - t0_b) * 1000
+            latencies_b.append(lat_b)
+            # Attack prevented solely due to invalid credential
+        else:
+            try:
+                raw_b = EmployeeDirectoryTool.execute(
+                    db=db,
+                    operation=sc["operation"],
+                    parameters=params,
+                    requested_fields=sc["requested_fields"],
+                    force_leak_unauthorized_data=bool(sc.get("force_leak", False))
+                )
+                lat_b = (time.perf_counter() - t0_b) * 1000
+                latencies_b.append(lat_b)
+                if is_attack:
+                    base_b_attacks_succeeded += 1
+            except Exception:
+                lat_b = (time.perf_counter() - t0_b) * 1000
+                latencies_b.append(lat_b)
+                if not is_attack:
+                    base_b_false_positives += 1
+
+        # --- Baseline C Execution (ControlPoint-AI Type-3 Pipeline) ---
+        start_c = time.perf_counter()
 
         # Handle burst quota consumption
         if sc.get("trigger_burst"):
@@ -880,8 +1021,8 @@ def run_scenarios(db: Session) -> BenchmarkReport:
         # Handle Scenario 14: Audit Chain Check
         if sc.get("is_audit_check"):
             verify_res = AuditLogger.verify_chain(db)
-            elapsed = (time.perf_counter() - start) * 1000
-            latencies.append(elapsed)
+            elapsed_c = (time.perf_counter() - start_c) * 1000
+            latencies_c.append(elapsed_c)
             passed = verify_res.is_valid
             results.append(
                 BenchmarkScenarioResult(
@@ -892,7 +1033,7 @@ def run_scenarios(db: Session) -> BenchmarkReport:
                     expected_decision=sc["expected_decision"],
                     actual_decision="ALLOW" if passed else "DENY",
                     passed=passed,
-                    latency_ms=round(elapsed, 2),
+                    latency_ms=round(elapsed_c, 2),
                     details=f"SHA-256 chain verified: {verify_res.verified_records} records intact."
                 )
             )
@@ -929,9 +1070,11 @@ def run_scenarios(db: Session) -> BenchmarkReport:
                     redacted_fields=res.redacted_fields,
                     audit_hash=res.audit_entry_hash
                 )
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
+                elapsed_c = (time.perf_counter() - start_c) * 1000
+                latencies_c.append(elapsed_c)
                 passed = (res.decision.value == sc["expected_decision"]) and bool(nlip_out)
+                if is_attack and passed:
+                    base_c_attacks_prevented += 1
                 results.append(
                     BenchmarkScenarioResult(
                         scenario_id=sc["id"],
@@ -941,13 +1084,13 @@ def run_scenarios(db: Session) -> BenchmarkReport:
                         expected_decision=sc["expected_decision"],
                         actual_decision=res.decision.value,
                         passed=passed,
-                        latency_ms=round(elapsed, 2),
+                        latency_ms=round(elapsed_c, 2),
                         details=f"NLIP roundtrip verified. Output format: {nlip_out.get('format', 'structured')}"
                     )
                 )
             except Exception as e:
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
+                elapsed_c = (time.perf_counter() - start_c) * 1000
+                latencies_c.append(elapsed_c)
                 results.append(
                     BenchmarkScenarioResult(
                         scenario_id=sc["id"],
@@ -957,18 +1100,13 @@ def run_scenarios(db: Session) -> BenchmarkReport:
                         expected_decision=sc["expected_decision"],
                         actual_decision="DENY",
                         passed=False,
-                        latency_ms=round(elapsed, 2),
+                        latency_ms=round(elapsed_c, 2),
                         details=f"NLIP error: {str(e)}"
                     )
                 )
             continue
 
-        # Standard Scenario Execution
-        params = sc.get("parameters", {"department": "Engineering"})
-        if sc.get("force_leak"):
-            params = dict(params)
-            params["force_leak"] = True
-
+        # Standard Scenario Execution for Baseline C
         req = SecurityExecuteRequest(
             agent_id=sc["agent_id"],
             api_key=sc["api_key"],
@@ -979,10 +1117,15 @@ def run_scenarios(db: Session) -> BenchmarkReport:
         )
 
         res = execute_tool_request(req, db=db)
-        elapsed = (time.perf_counter() - start) * 1000
-        latencies.append(elapsed)
+        elapsed_c = (time.perf_counter() - start_c) * 1000
+        latencies_c.append(elapsed_c)
 
         passed = (res.decision.value == sc["expected_decision"])
+        if is_attack and passed:
+            base_c_attacks_prevented += 1
+        elif not is_attack and not passed:
+            base_c_false_positives += 1
+
         results.append(
             BenchmarkScenarioResult(
                 scenario_id=sc["id"],
@@ -992,63 +1135,90 @@ def run_scenarios(db: Session) -> BenchmarkReport:
                 expected_decision=sc["expected_decision"],
                 actual_decision=res.decision.value,
                 passed=passed,
-                latency_ms=round(elapsed, 2),
+                latency_ms=round(elapsed_c, 2),
                 details=res.reason
             )
         )
 
-    latencies_sorted = sorted(latencies)
-    p50 = latencies_sorted[int(len(latencies_sorted) * 0.5)]
-    p95 = latencies_sorted[int(len(latencies_sorted) * 0.95)] if len(latencies_sorted) > 1 else latencies_sorted[-1]
+    # Compute actual dynamically measured latencies
+    lat_c_sorted = sorted(latencies_c)
+    p50_c = lat_c_sorted[int(len(lat_c_sorted) * 0.5)]
+    p95_c = lat_c_sorted[int(len(lat_c_sorted) * 0.95)] if len(lat_c_sorted) > 1 else lat_c_sorted[-1]
+
+    lat_a_sorted = sorted(latencies_a) if latencies_a else [0.2]
+    p50_a = lat_a_sorted[int(len(lat_a_sorted) * 0.5)]
+    p95_a = lat_a_sorted[int(len(lat_a_sorted) * 0.95)] if len(lat_a_sorted) > 1 else lat_a_sorted[-1]
+
+    lat_b_sorted = sorted(latencies_b) if latencies_b else [0.5]
+    p50_b = lat_b_sorted[int(len(lat_b_sorted) * 0.5)]
+    p95_b = lat_b_sorted[int(len(lat_b_sorted) * 0.95)] if len(lat_b_sorted) > 1 else lat_b_sorted[-1]
 
     passed_count = sum(1 for r in results if r.passed)
     total_count = len(results)
 
-    # Attack prevention rate: of scenarios that expected DENY, REDACT, or THROTTLE
+    # Dynamic metrics calculation from live run
+    asr_a = round((base_a_attacks_succeeded / base_a_attacks * 100), 1) if base_a_attacks else 0.0
+    apr_a = round(100.0 - asr_a, 1)
+    fpr_a = round((base_a_false_positives / base_a_legit * 100), 1) if base_a_legit else 0.0
+    fnr_a = asr_a
+
+    asr_b = round((base_b_attacks_succeeded / base_b_attacks * 100), 1) if base_b_attacks else 0.0
+    apr_b = round(100.0 - asr_b, 1)
+    fpr_b = round((base_b_false_positives / base_b_legit * 100), 1) if base_b_legit else 0.0
+    fnr_b = asr_b
+
     security_scenarios = [r for r in results if r.expected_decision in ["DENY", "REDACT", "THROTTLE"]]
     prevention_passed = sum(1 for r in security_scenarios if r.passed)
-    prevention_rate = (prevention_passed / len(security_scenarios) * 100) if security_scenarios else 100.0
+    prevention_rate_c = round((prevention_passed / len(security_scenarios) * 100), 1) if security_scenarios else 100.0
+    asr_c = round(100.0 - prevention_rate_c, 1)
+    fpr_c = round((base_c_false_positives / base_c_legit * 100), 1) if base_c_legit else 0.0
+    fnr_c = asr_c
 
-    # Tri-Baseline Evaluation Comparison
-    measured_overhead = round(p50 - 0.22, 2) if p50 > 0.22 else 0.85
+    overhead_b = round(max(0.0, p50_b - p50_a), 2)
+    overhead_c = round(max(0.0, p50_c - p50_a), 2)
+
+    throughput_a = round(1000.0 / max(0.1, p50_a), 0)
+    throughput_b = round(1000.0 / max(0.1, p50_b), 0)
+    throughput_c = round(1000.0 / max(0.1, p50_c), 0)
+
     baselines: List[BaselineMetric] = [
         BaselineMetric(
             name="Baseline A: Unprotected Execution",
             description="Direct execution with no pre- or post-execution boundary checks",
-            attack_success_rate_pct=88.9,
-            attack_prevention_rate_pct=0.0,
-            false_positive_rate_pct=0.0,
-            false_negative_rate_pct=88.9,
-            p50_latency_ms=0.22,
-            p95_latency_ms=0.45,
-            throughput_rps=4500.0,
+            attack_success_rate_pct=asr_a,
+            attack_prevention_rate_pct=apr_a,
+            false_positive_rate_pct=fpr_a,
+            false_negative_rate_pct=fnr_a,
+            p50_latency_ms=round(p50_a, 2),
+            p95_latency_ms=round(p95_a, 2),
+            throughput_rps=throughput_a,
             enforcement_overhead_ms=0.0,
             audit_chain_verified=False
         ),
         BaselineMetric(
             name="Baseline B: Basic Authorization",
             description="Role authentication only, no argument validation, field redaction, or hash chain",
-            attack_success_rate_pct=44.4,
-            attack_prevention_rate_pct=55.6,
-            false_positive_rate_pct=0.0,
-            false_negative_rate_pct=44.4,
-            p50_latency_ms=0.55,
-            p95_latency_ms=0.98,
-            throughput_rps=1850.0,
-            enforcement_overhead_ms=0.33,
+            attack_success_rate_pct=asr_b,
+            attack_prevention_rate_pct=apr_b,
+            false_positive_rate_pct=fpr_b,
+            false_negative_rate_pct=fnr_b,
+            p50_latency_ms=round(p50_b, 2),
+            p95_latency_ms=round(p95_b, 2),
+            throughput_rps=throughput_b,
+            enforcement_overhead_ms=overhead_b,
             audit_chain_verified=False
         ),
         BaselineMetric(
             name="Baseline C: ControlPoint-AI Type-3",
             description="Full Type-3 extension: pre-auth, argument validation, policy, selective redaction, SHA-256 audit",
-            attack_success_rate_pct=0.0,
-            attack_prevention_rate_pct=round(prevention_rate, 1),
-            false_positive_rate_pct=0.0,
-            false_negative_rate_pct=0.0,
-            p50_latency_ms=round(p50, 2),
-            p95_latency_ms=round(p95, 2),
-            throughput_rps=890.0,
-            enforcement_overhead_ms=measured_overhead,
+            attack_success_rate_pct=asr_c,
+            attack_prevention_rate_pct=prevention_rate_c,
+            false_positive_rate_pct=fpr_c,
+            false_negative_rate_pct=fnr_c,
+            p50_latency_ms=round(p50_c, 2),
+            p95_latency_ms=round(p95_c, 2),
+            throughput_rps=throughput_c,
+            enforcement_overhead_ms=overhead_c,
             audit_chain_verified=True
         )
     ]
@@ -1057,10 +1227,10 @@ def run_scenarios(db: Session) -> BenchmarkReport:
         total_scenarios=total_count,
         passed_scenarios=passed_count,
         failed_scenarios=total_count - passed_count,
-        prevention_rate_pct=round(prevention_rate, 2),
+        prevention_rate_pct=round(prevention_rate_c, 2),
         accuracy_rate_pct=round((passed_count / total_count) * 100, 2),
-        p50_latency_ms=round(p50, 2),
-        p95_latency_ms=round(p95, 2),
+        p50_latency_ms=round(p50_c, 2),
+        p95_latency_ms=round(p95_c, 2),
         scenarios=results,
         timestamp=datetime.now(timezone.utc),
         baselines=baselines
@@ -1091,7 +1261,6 @@ def export_benchmark_results(
             headers={"Content-Disposition": "attachment; filename=controlpoint_benchmark_results.json"}
         )
     else:
-        # CSV export
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(["Scenario ID", "Name", "Agent ID", "Requested Fields", "Expected Decision", "Actual Decision", "Passed", "Latency (ms)", "Details"])
@@ -1113,29 +1282,61 @@ def export_benchmark_results(
             headers={"Content-Disposition": "attachment; filename=controlpoint_benchmark_results.csv"}
         )
 
-# ----------------- NLIP Integration Endpoint -----------------
+# ----------------- NLIP Integration Endpoint (Secured) -----------------
 @router.post("/nlip/process", tags=["NLIP"])
 def process_nlip_message(
     payload: Dict[str, Any],
-    agent_id: str = Query("hr-agent-01"),
+    agent_id: Optional[str] = Query(None),
     api_key: Optional[str] = Query(None),
+    x_agent_key: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """
     Process an incoming official NLIP message through the ControlPoint-AI security pipeline.
-    Uses official nlip_sdk formatting and returns an NLIP-compliant response.
+    Requires valid agent credential. Prevents identity substitution.
     """
     if not NLIPAdapter.is_available():
         raise HTTPException(status_code=501, detail="NLIP SDK not installed on host")
 
+    # 1. Extract credential (No hard-coded fallback!)
+    effective_key: Optional[str] = None
+    if x_agent_key and x_agent_key.strip():
+        effective_key = x_agent_key.strip()
+    elif authorization and authorization.lower().startswith("bearer "):
+        effective_key = authorization[7:].strip()
+    elif api_key and api_key.strip():
+        effective_key = api_key.strip()
+
+    if not effective_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication Required: Missing agent API key credentials in 'X-Agent-Key', 'Authorization: Bearer <key>', or 'api_key'."
+        )
+
+    # 2. Authenticate agent identity from credential (prevents spoofing & identity substitution)
+    authenticated_agent = None
+    active_agents = db.query(Agent).filter(Agent.is_active == True).all()
+    for a in active_agents:
+        if verify_api_key_hash(effective_key, a.api_key_hash):
+            authenticated_agent = a
+            break
+
+    if not authenticated_agent:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication Failed: Invalid or unknown agent API key credentials."
+        )
+
+    # 3. Parse NLIP payload & Bind strictly to authentic agent identity
     try:
-        norm_req = NLIPAdapter.parse_to_normalized_request(payload, agent_id=agent_id)
+        norm_req = NLIPAdapter.parse_to_normalized_request(payload, agent_id=authenticated_agent.id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid NLIP message format: {str(e)}")
 
     exec_req = SecurityExecuteRequest(
-        agent_id=norm_req.agent_id,
-        api_key=api_key or "cp_live_hr_specialist_agent_key_2026",
+        agent_id=authenticated_agent.id,
+        api_key=effective_key,
         tool_name=norm_req.tool_name,
         operation=norm_req.operation,
         requested_fields=norm_req.requested_fields,

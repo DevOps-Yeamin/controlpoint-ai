@@ -1,16 +1,16 @@
 Scenario ID,Name,Agent ID,Requested Fields,Expected Decision,Actual Decision,Passed,Latency (ms),Details
-1,HR requests name and attendance,hr-agent-01,name;attendance,ALLOW,ALLOW,True,27.63,Access granted under policy 'HR Employee Directory Access Policy'. All 2 requested fields are authorized.
-2,HR requests salary,hr-agent-01,salary,DENY,DENY,True,13.17,Access denied under policy 'HR Employee Directory Access Policy'. None of the requested fields are permitted for role 'HR Specialist': [salary].
-3,HR requests name and salary,hr-agent-01,name;salary,REDACT,REDACT,True,11.32,Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary].
-4,Guest requests national_id,guest-agent-01,national_id,DENY,DENY,True,9.0,Access denied under policy 'Guest Public Directory Access Policy'. None of the requested fields are permitted for role 'External Guest': [national_id].
-5,Finance requests salary,finance-agent-01,salary,ALLOW,ALLOW,True,9.89,Access granted under policy 'Finance Payroll & Compensation Access Policy'. All 1 requested fields are authorized.
-6,Invalid identity verification,hr-agent-01,name,DENY,DENY,True,7.52,Identity Verification Failed: Authentication failed: Invalid credentials for agent identity
-7,Rate limit exceeded (Throttling),guest-agent-01,name,THROTTLE,THROTTLE,True,7.64,Throttled: Agent 'guest-agent-01' exceeded quota of 5 req/min. Retry after 60.0s.
-8,Tool returns unauthorized sensitive data (Response Inspection),hr-agent-01,name,REDACT,REDACT,True,10.73,"Tool response inspection: Sanitized 6 unauthorized leaked fields (attendance, department, email, employee_id, national_id, salary)."
-9,Malformed tool arguments injection attempt,hr-agent-01,name,DENY,DENY,True,6.67,Argument Validation Failed: Malformed or malicious parameter payload detected in 'department'
-10,Unknown tool invocation attempt,hr-agent-01,command,DENY,DENY,True,7.45,Tool Identification Failed: Unknown tool 'unregistered_shell_tool' is not registered in system catalog
-11,Policy conflict resolution (most-restrictive),hr-agent-01,name;salary,REDACT,REDACT,True,9.28,Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary].
-12,Unauthorized privilege escalation (Mutation attempt),hr-agent-01,employee_id,DENY,DENY,True,10.55,Operation 'delete' is not authorized for tool 'employee_directory' under policy 'policy-hr-directory-v1' (HR Employee Directory Access Policy)
-13,Repeated unauthorized requests (Progressive Throttling),guest-agent-01,national_id,THROTTLE,THROTTLE,True,9.16,Progressive Lockout: Agent 'guest-agent-01' locked due to repeated unauthorized security violations. Retry after 59.9s.
-14,Cryptographic audit-chain tamper verification,audit-verifier,entry_hash,ALLOW,ALLOW,True,6.7,SHA-256 chain verified: 79 records intact.
-15,Official NLIP message roundtrip integration,hr-agent-01,name;attendance,ALLOW,ALLOW,True,14.2,NLIP roundtrip verified. Output format: structured
+1,HR requests name and attendance,hr-agent-01,name;attendance,ALLOW,ALLOW,True,22.3,Access granted under policy 'HR Employee Directory Access Policy'. All 2 requested fields are authorized.
+2,HR requests salary,hr-agent-01,salary,DENY,DENY,True,15.13,Access denied under policy 'HR Employee Directory Access Policy'. None of the requested fields are permitted for role 'HR Specialist': [salary].
+3,HR requests name and salary,hr-agent-01,name;salary,REDACT,REDACT,True,14.3,Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary].
+4,Guest requests national_id,guest-agent-01,national_id,DENY,DENY,True,12.04,Access denied under policy 'Guest Public Directory Access Policy'. None of the requested fields are permitted for role 'External Guest': [national_id].
+5,Finance requests salary,finance-agent-01,salary,ALLOW,ALLOW,True,11.99,Access granted under policy 'Finance Payroll & Compensation Access Policy'. All 1 requested fields are authorized.
+6,Invalid identity verification,hr-agent-01,name,DENY,DENY,True,7.28,Identity Verification Failed: Authentication failed: Invalid credentials for agent identity
+7,Rate limit exceeded (Throttling),guest-agent-01,name,THROTTLE,THROTTLE,True,11.82,Throttled: Agent 'guest-agent-01' exceeded quota of 5 req/min. Retry after 60.0s.
+8,Tool returns unauthorized sensitive data (Response Inspection),hr-agent-01,name,REDACT,REDACT,True,11.9,"Tool response inspection: Sanitized 6 unauthorized leaked fields (attendance, department, email, employee_id, national_id, salary)."
+9,Malformed tool arguments injection attempt,hr-agent-01,name,DENY,DENY,True,5.79,Argument Validation Failed: Malformed or malicious parameter payload detected in 'department'
+10,Unknown tool invocation attempt,hr-agent-01,command,DENY,DENY,True,6.9,Tool Identification Failed: Unknown tool 'unregistered_shell_tool' is not registered in system catalog
+11,Policy conflict resolution (most-restrictive),hr-agent-01,name;salary,REDACT,REDACT,True,12.4,Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary].
+12,Unauthorized privilege escalation (Mutation attempt),hr-agent-01,employee_id,DENY,DENY,True,12.61,Operation 'delete' is not authorized for tool 'employee_directory' under policy 'policy-hr-directory-v1' (HR Employee Directory Access Policy)
+13,Repeated unauthorized requests (Progressive Throttling),guest-agent-01,national_id,THROTTLE,THROTTLE,True,8.4,Progressive Lockout: Agent 'guest-agent-01' locked due to repeated unauthorized security violations. Retry after 59.9s.
+14,Cryptographic audit-chain tamper verification,audit-verifier,entry_hash,ALLOW,ALLOW,True,5.28,SHA-256 chain verified: 131 records intact.
+15,Official NLIP message roundtrip integration,hr-agent-01,name;attendance,ALLOW,ALLOW,True,11.07,NLIP roundtrip verified. Output format: structured

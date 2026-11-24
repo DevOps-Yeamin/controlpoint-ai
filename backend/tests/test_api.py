@@ -15,6 +15,8 @@ def test_api_agents_crud(client):
     agents = res.json()
     assert len(agents) >= 3
 
+    admin_headers = {"X-Admin-Key": "cp_live_admin_secret_key_2026"}
+
     # Create new agent
     new_agent_payload = {
         "id": "compliance-agent-01",
@@ -23,7 +25,7 @@ def test_api_agents_crud(client):
         "description": "Auditing and compliance checking assistant",
         "rate_limit_per_minute": 30
     }
-    create_res = client.post("/api/agents", json=new_agent_payload)
+    create_res = client.post("/api/agents", json=new_agent_payload, headers=admin_headers)
     assert create_res.status_code == 200
     data = create_res.json()
     assert data["id"] == "compliance-agent-01"
@@ -47,7 +49,8 @@ def test_api_policies_crud(client):
         "denied_fields": ["salary", "national_id"],
         "default_action": "DENY"
     }
-    create_res = client.post("/api/policies", json=new_policy)
+    admin_headers = {"X-Admin-Key": "cp_live_admin_secret_key_2026"}
+    create_res = client.post("/api/policies", json=new_policy, headers=admin_headers)
     assert create_res.status_code == 200
     assert create_res.json()["id"] == "policy-compliance-v1"
 

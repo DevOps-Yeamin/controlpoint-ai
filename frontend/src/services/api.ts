@@ -9,6 +9,15 @@ import {
 } from "../types";
 
 const API_BASE = "/api";
+const DEFAULT_ADMIN_KEY = "cp_live_admin_secret_key_2026";
+
+const getAdminHeaders = (extraHeaders: Record<string, string> = {}) => {
+  const adminKey = (typeof window !== "undefined" && window.localStorage?.getItem("cp_admin_key")) || DEFAULT_ADMIN_KEY;
+  return {
+    "X-Admin-Key": adminKey,
+    ...extraHeaders
+  };
+};
 
 export const api = {
   // System Health
@@ -20,14 +29,18 @@ export const api = {
 
   // Dashboard Summary
   async getDashboardSummary(): Promise<DashboardSummary> {
-    const res = await fetch(`${API_BASE}/dashboard/summary`);
+    const res = await fetch(`${API_BASE}/dashboard/summary`, {
+      headers: getAdminHeaders()
+    });
     if (!res.ok) throw new Error("Failed to fetch dashboard summary");
     return res.json();
   },
 
   // Agents
   async getAgents(): Promise<Agent[]> {
-    const res = await fetch(`${API_BASE}/agents`);
+    const res = await fetch(`${API_BASE}/agents`, {
+      headers: getAdminHeaders()
+    });
     if (!res.ok) throw new Error("Failed to fetch agents");
     return res.json();
   },
@@ -41,7 +54,7 @@ export const api = {
   }) {
     const res = await fetch(`${API_BASE}/agents`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data)
     });
     if (!res.ok) {
@@ -53,7 +66,9 @@ export const api = {
 
   // Policies
   async getPolicies(): Promise<Policy[]> {
-    const res = await fetch(`${API_BASE}/policies`);
+    const res = await fetch(`${API_BASE}/policies`, {
+      headers: getAdminHeaders()
+    });
     if (!res.ok) throw new Error("Failed to fetch policies");
     return res.json();
   },
@@ -72,7 +87,7 @@ export const api = {
   }) {
     const res = await fetch(`${API_BASE}/policies`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data)
     });
     if (!res.ok) {
@@ -91,9 +106,13 @@ export const api = {
     requested_fields: string[];
     parameters?: Record<string, any>;
   }) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (payload.api_key) {
+      headers["X-Agent-Key"] = payload.api_key;
+    }
     const res = await fetch(`${API_BASE}/security/evaluate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error("Evaluation request failed");
@@ -108,9 +127,13 @@ export const api = {
     requested_fields: string[];
     parameters?: Record<string, any>;
   }): Promise<SecurityExecuteResponse> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (payload.api_key) {
+      headers["X-Agent-Key"] = payload.api_key;
+    }
     const res = await fetch(`${API_BASE}/security/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error("Execution request failed");
@@ -124,13 +147,17 @@ export const api = {
     if (decision) params.set("decision", decision);
     params.set("limit", "100");
 
-    const res = await fetch(`${API_BASE}/audit-logs?${params.toString()}`);
+    const res = await fetch(`${API_BASE}/audit-logs?${params.toString()}`, {
+      headers: getAdminHeaders()
+    });
     if (!res.ok) throw new Error("Failed to fetch audit logs");
     return res.json();
   },
 
   async verifyAuditChain(): Promise<AuditChainVerifyResponse> {
-    const res = await fetch(`${API_BASE}/audit-logs/verify-chain`);
+    const res = await fetch(`${API_BASE}/audit-logs/verify-chain`, {
+      headers: getAdminHeaders()
+    });
     if (!res.ok) throw new Error("Failed to verify audit hash-chain");
     return res.json();
   },
@@ -143,7 +170,7 @@ export const api = {
   },
 
   async runBenchmark(): Promise<BenchmarkReport> {
-    const res = await fetch(`${API_BASE}/benchmark/run`, { method: "POST" });
+    const res = await fetch(`${API_BASE}/benchmark/run`, { credentials: "same-origin", method: "POST" });
     if (!res.ok) throw new Error("Failed to execute benchmark suite");
     return res.json();
   },
@@ -153,9 +180,14 @@ export const api = {
     const params = new URLSearchParams({ agent_id });
     if (api_key) params.set("api_key", api_key);
 
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (api_key) {
+      headers["X-Agent-Key"] = api_key;
+    }
+
     const res = await fetch(`${API_BASE}/nlip/process?${params.toString()}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(nlipMessage)
     });
     if (!res.ok) {

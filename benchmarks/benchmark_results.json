@@ -4,8 +4,8 @@
   "failed_scenarios": 0,
   "prevention_rate_pct": 100.0,
   "accuracy_rate_pct": 100.0,
-  "p50_latency_ms": 9.28,
-  "p95_latency_ms": 27.63,
+  "p50_latency_ms": 11.9,
+  "p95_latency_ms": 22.3,
   "scenarios": [
     {
       "scenario_id": 1,
@@ -18,7 +18,7 @@
       "expected_decision": "ALLOW",
       "actual_decision": "ALLOW",
       "passed": true,
-      "latency_ms": 27.63,
+      "latency_ms": 22.3,
       "details": "Access granted under policy 'HR Employee Directory Access Policy'. All 2 requested fields are authorized."
     },
     {
@@ -31,7 +31,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 13.17,
+      "latency_ms": 15.13,
       "details": "Access denied under policy 'HR Employee Directory Access Policy'. None of the requested fields are permitted for role 'HR Specialist': [salary]."
     },
     {
@@ -45,7 +45,7 @@
       "expected_decision": "REDACT",
       "actual_decision": "REDACT",
       "passed": true,
-      "latency_ms": 11.32,
+      "latency_ms": 14.3,
       "details": "Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary]."
     },
     {
@@ -58,7 +58,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 9.0,
+      "latency_ms": 12.04,
       "details": "Access denied under policy 'Guest Public Directory Access Policy'. None of the requested fields are permitted for role 'External Guest': [national_id]."
     },
     {
@@ -71,7 +71,7 @@
       "expected_decision": "ALLOW",
       "actual_decision": "ALLOW",
       "passed": true,
-      "latency_ms": 9.89,
+      "latency_ms": 11.99,
       "details": "Access granted under policy 'Finance Payroll & Compensation Access Policy'. All 1 requested fields are authorized."
     },
     {
@@ -84,7 +84,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 7.52,
+      "latency_ms": 7.28,
       "details": "Identity Verification Failed: Authentication failed: Invalid credentials for agent identity"
     },
     {
@@ -97,7 +97,7 @@
       "expected_decision": "THROTTLE",
       "actual_decision": "THROTTLE",
       "passed": true,
-      "latency_ms": 7.64,
+      "latency_ms": 11.82,
       "details": "Throttled: Agent 'guest-agent-01' exceeded quota of 5 req/min. Retry after 60.0s."
     },
     {
@@ -110,7 +110,7 @@
       "expected_decision": "REDACT",
       "actual_decision": "REDACT",
       "passed": true,
-      "latency_ms": 10.73,
+      "latency_ms": 11.9,
       "details": "Tool response inspection: Sanitized 6 unauthorized leaked fields (attendance, department, email, employee_id, national_id, salary)."
     },
     {
@@ -123,7 +123,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 6.67,
+      "latency_ms": 5.79,
       "details": "Argument Validation Failed: Malformed or malicious parameter payload detected in 'department'"
     },
     {
@@ -136,7 +136,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 7.45,
+      "latency_ms": 6.9,
       "details": "Tool Identification Failed: Unknown tool 'unregistered_shell_tool' is not registered in system catalog"
     },
     {
@@ -150,7 +150,7 @@
       "expected_decision": "REDACT",
       "actual_decision": "REDACT",
       "passed": true,
-      "latency_ms": 9.28,
+      "latency_ms": 12.4,
       "details": "Partial authorization under policy 'HR Employee Directory Access Policy'. Permitted: [name]. Redacting unauthorized fields: [salary]."
     },
     {
@@ -163,7 +163,7 @@
       "expected_decision": "DENY",
       "actual_decision": "DENY",
       "passed": true,
-      "latency_ms": 10.55,
+      "latency_ms": 12.61,
       "details": "Operation 'delete' is not authorized for tool 'employee_directory' under policy 'policy-hr-directory-v1' (HR Employee Directory Access Policy)"
     },
     {
@@ -176,7 +176,7 @@
       "expected_decision": "THROTTLE",
       "actual_decision": "THROTTLE",
       "passed": true,
-      "latency_ms": 9.16,
+      "latency_ms": 8.4,
       "details": "Progressive Lockout: Agent 'guest-agent-01' locked due to repeated unauthorized security violations. Retry after 59.9s."
     },
     {
@@ -189,8 +189,8 @@
       "expected_decision": "ALLOW",
       "actual_decision": "ALLOW",
       "passed": true,
-      "latency_ms": 6.7,
-      "details": "SHA-256 chain verified: 79 records intact."
+      "latency_ms": 5.28,
+      "details": "SHA-256 chain verified: 131 records intact."
     },
     {
       "scenario_id": 15,
@@ -203,36 +203,36 @@
       "expected_decision": "ALLOW",
       "actual_decision": "ALLOW",
       "passed": true,
-      "latency_ms": 14.2,
+      "latency_ms": 11.07,
       "details": "NLIP roundtrip verified. Output format: structured"
     }
   ],
-  "timestamp": "2026-11-24T11:25:54.860144Z",
+  "timestamp": "2026-11-24T12:20:29.899964Z",
   "baselines": [
     {
       "name": "Baseline A: Unprotected Execution",
       "description": "Direct execution with no pre- or post-execution boundary checks",
-      "attack_success_rate_pct": 88.9,
+      "attack_success_rate_pct": 100.0,
       "attack_prevention_rate_pct": 0.0,
       "false_positive_rate_pct": 0.0,
-      "false_negative_rate_pct": 88.9,
-      "p50_latency_ms": 0.22,
-      "p95_latency_ms": 0.45,
-      "throughput_rps": 4500.0,
+      "false_negative_rate_pct": 100.0,
+      "p50_latency_ms": 1.01,
+      "p95_latency_ms": 4.16,
+      "throughput_rps": 986.0,
       "enforcement_overhead_ms": 0.0,
       "audit_chain_verified": false
     },
     {
       "name": "Baseline B: Basic Authorization",
       "description": "Role authentication only, no argument validation, field redaction, or hash chain",
-      "attack_success_rate_pct": 44.4,
-      "attack_prevention_rate_pct": 55.6,
+      "attack_success_rate_pct": 90.9,
+      "attack_prevention_rate_pct": 9.1,
       "false_positive_rate_pct": 0.0,
-      "false_negative_rate_pct": 44.4,
-      "p50_latency_ms": 0.55,
-      "p95_latency_ms": 0.98,
-      "throughput_rps": 1850.0,
-      "enforcement_overhead_ms": 0.33,
+      "false_negative_rate_pct": 90.9,
+      "p50_latency_ms": 1.55,
+      "p95_latency_ms": 10.39,
+      "throughput_rps": 646.0,
+      "enforcement_overhead_ms": 0.53,
       "audit_chain_verified": false
     },
     {
@@ -242,10 +242,10 @@
       "attack_prevention_rate_pct": 100.0,
       "false_positive_rate_pct": 0.0,
       "false_negative_rate_pct": 0.0,
-      "p50_latency_ms": 9.28,
-      "p95_latency_ms": 27.63,
-      "throughput_rps": 890.0,
-      "enforcement_overhead_ms": 9.06,
+      "p50_latency_ms": 11.9,
+      "p95_latency_ms": 22.3,
+      "throughput_rps": 84.0,
+      "enforcement_overhead_ms": 10.88,
       "audit_chain_verified": true
     }
   ]
