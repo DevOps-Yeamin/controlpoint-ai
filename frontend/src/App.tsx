@@ -51,16 +51,16 @@ export const App: React.FC = () => {
       {/* Enterprise Cyber Security Footer */}
       <footer className="border-t border-[#21262d] bg-[#0d1117] py-6 text-xs text-gray-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-blue-500" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Shield className="w-4 h-4 text-blue-500 flex-shrink-0" />
             <span className="font-bold text-white">ControlPoint-AI</span>
-            <span>—</span>
-            <span className="text-gray-300">IndustrySphere AI</span>
-            <span>•</span>
-            <span className="italic text-gray-400">Control What Your AI Agents Can Do.</span>
+            <span className="text-gray-600">—</span>
+            <span className="font-semibold text-white">IndustrySphere AI</span>
+            <span className="text-gray-500">•</span>
+            <span className="italic text-gray-300">Control What Your AI Agents Can Do.</span>
           </div>
 
-          <div className="flex items-center gap-4 text-gray-500 font-mono text-[11px]">
+          <div className="flex flex-wrap items-center gap-3 text-gray-500 font-mono text-[11px]">
             <span>Type-3 Security Extension</span>
             <span>•</span>
             <span>Apache-2.0 License</span>
@@ -68,7 +68,8 @@ export const App: React.FC = () => {
             <a 
               href="/docs" 
               target="_blank" 
-              className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+              rel="noreferrer"
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
             >
               OpenAPI Docs <ExternalLink className="w-3 h-3" />
             </a>

@@ -1,6 +1,18 @@
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple, Optional
 from backend.app.schemas.schemas import NormalizedRequest
+
+# Catalog of known tools authorized in ControlPoint-AI
+REGISTERED_TOOLS = {
+    "employee_directory"
+}
+
+# Malicious argument detection patterns
+DANGEROUS_ARG_PATTERNS = [
+    re.compile(r"(--|;|'|\"|\b(UNION|SELECT|DROP|INSERT|DELETE|UPDATE|ALTER|EXEC|SHUTDOWN)\b)", re.IGNORECASE),
+    re.compile(r"(<script|javascript:|eval\(|base64_decode)", re.IGNORECASE),
+    re.compile(r"(\.\./|\.\.\\|/etc/passwd|/proc/|cmd\.exe|powershell)", re.IGNORECASE)
+]
 
 class RequestNormalizer:
     @staticmethod
@@ -15,6 +27,43 @@ class RequestNormalizer:
                 if c and c not in cleaned:
                     cleaned.append(c)
         return cleaned
+
+    @staticmethod
+    def validate_tool_name(tool_name: str) -> Tuple[bool, Optional[str]]:
+        """Validate that the requested tool is registered in the system tool catalog."""
+        t = str(tool_name or "").strip().lower()
+        if not t:
+            return False, "Tool Identification Failed: Empty tool name provided"
+        if t not in REGISTERED_TOOLS:
+            return False, f"Tool Identification Failed: Unknown tool '{tool_name}' is not registered in system catalog"
+        return True, None
+
+    @staticmethod
+    def validate_arguments(parameters: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """
+        Validate tool arguments for syntactic correctness, valid bounds,
+        and absence of injection attack signatures.
+        """
+        if not isinstance(parameters, dict):
+            return False, "Argument Validation Failed: Tool parameters must be a JSON object"
+
+        # Check numeric parameter limits
+        if "limit" in parameters:
+            try:
+                limit_val = int(parameters["limit"])
+                if limit_val < 0 or limit_val > 1000:
+                    return False, f"Argument Validation Failed: Parameter 'limit' must be between 0 and 1000 (received {limit_val})"
+            except (ValueError, TypeError):
+                return False, f"Argument Validation Failed: Parameter 'limit' must be an integer"
+
+        # Check string parameters against injection patterns
+        for key, val in parameters.items():
+            if isinstance(val, str):
+                for pattern in DANGEROUS_ARG_PATTERNS:
+                    if pattern.search(val):
+                        return False, f"Argument Validation Failed: Malformed or malicious parameter payload detected in '{key}'"
+
+        return True, None
 
     @staticmethod
     def normalize_tool_call(

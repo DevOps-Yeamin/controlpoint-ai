@@ -119,6 +119,7 @@ class NLIPAdapter:
             content={
                 "decision": decision.value,
                 "reason": reason,
+                "audit_hash": audit_hash,
                 "data": enforced_data if decision != DecisionEnum.DENY else None
             },
             label=f"ControlPoint Enforcement: {decision.value}",

@@ -113,8 +113,8 @@ def test_api_benchmark_suite(client):
     res = client.post("/api/benchmark/run")
     assert res.status_code == 200
     report = res.json()
-    assert report["total_scenarios"] == 8
-    assert report["passed_scenarios"] == 8
+    assert report["total_scenarios"] == 15
+    assert report["passed_scenarios"] == 15
     assert report["failed_scenarios"] == 0
     assert report["accuracy_rate_pct"] == 100.0
 

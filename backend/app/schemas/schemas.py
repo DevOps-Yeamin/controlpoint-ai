@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import List, Optional, Dict, Any
 from enum import Enum
+from pydantic import BaseModel, Field, ConfigDict
 
+# --- Core Enums ---
 class DecisionEnum(str, Enum):
     ALLOW = "ALLOW"
     DENY = "DENY"
@@ -11,85 +12,84 @@ class DecisionEnum(str, Enum):
 
 # --- Agent Schemas ---
 class AgentBase(BaseModel):
-    name: str = Field(..., json_schema_extra={"example": "HR Specialist Agent"})
-    role: str = Field(..., json_schema_extra={"example": "HR Specialist"})
-    description: Optional[str] = Field(None, json_schema_extra={"example": "Automated agent for HR record queries"})
-    rate_limit_per_minute: int = Field(15, ge=1, le=1000)
+    id: str = Field(..., description="Unique agent identifier (e.g. hr-agent-01)")
+    name: str = Field(..., description="Human-readable name")
+    role: str = Field(..., description="Agent role (e.g. HR Specialist, Finance Analyst, External Guest)")
+    description: Optional[str] = None
+    rate_limit_per_minute: int = Field(default=20, ge=1, le=1000)
 
 class AgentCreate(AgentBase):
-    id: str = Field(..., json_schema_extra={"example": "hr-agent-01"})
+    api_key: Optional[str] = Field(None, description="Optional custom API key. If omitted, a secure key is auto-generated.")
 
 class AgentResponse(AgentBase):
-    id: str
-    api_key_prefix: str
     is_active: bool
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
 class AgentCreateResult(AgentResponse):
-    raw_api_key: str # Shown once upon creation
+    raw_api_key: str = Field(..., description="The plain API key shown only once upon registration")
 
 # --- Policy Schemas ---
 class PolicyBase(BaseModel):
-    name: str = Field(..., json_schema_extra={"example": "HR Employee Read Policy"})
-    version: str = Field("v1.0.0", json_schema_extra={"example": "v1.0.0"})
-    description: Optional[str] = Field(None, json_schema_extra={"example": "Policy controlling HR field access"})
-    target_role: str = Field(..., json_schema_extra={"example": "HR Specialist"})
-    target_tool: str = Field("employee_directory", json_schema_extra={"example": "employee_directory"})
-    allowed_operations: List[str] = Field(default_factory=list, json_schema_extra={"example": ["read", "query"]})
-    allowed_fields: List[str] = Field(default_factory=list, json_schema_extra={"example": ["employee_id", "name", "email", "department", "attendance"]})
-    denied_fields: List[str] = Field(default_factory=list, json_schema_extra={"example": ["salary", "national_id"]})
-    default_action: str = Field("DENY", json_schema_extra={"example": "DENY"})
+    id: str = Field(..., description="Unique policy identifier")
+    name: str = Field(..., description="Policy name")
+    version: str = Field(default="v1.0.0", description="Policy version tracking")
+    target_role: str = Field(..., description="Target role (or '*' for all)")
+    target_tool: str = Field(..., description="Target tool (or '*' for all)")
+    allowed_operations: List[str] = Field(default_factory=lambda: ["read"])
+    allowed_fields: List[str] = Field(default_factory=list)
+    denied_fields: List[str] = Field(default_factory=list)
+    default_action: DecisionEnum = Field(default=DecisionEnum.DENY)
     is_active: bool = True
+    description: Optional[str] = None
 
 class PolicyCreate(PolicyBase):
-    id: str = Field(..., json_schema_extra={"example": "policy-hr-directory-v1"})
+    pass
 
 class PolicyResponse(PolicyBase):
-    id: str
+    is_active: bool
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
-# --- Tool Call / Request Normalization ---
+# --- Normalization & Security Request/Response Schemas ---
 class NormalizedRequest(BaseModel):
     agent_id: str
     tool_name: str
     operation: str
+    requested_fields: List[str]
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    raw_payload: Dict[str, Any] = Field(default_factory=dict)
+
+class SecurityEvaluateRequest(BaseModel):
+    agent_id: str
+    api_key: str
+    tool_name: str
+    operation: str = "read"
     requested_fields: List[str] = Field(default_factory=list)
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    raw_payload: Optional[Dict[str, Any]] = None
-
-# --- Security Evaluation & Execution ---
-class SecurityEvaluateRequest(BaseModel):
-    agent_id: str = Field(..., json_schema_extra={"example": "hr-agent-01"})
-    api_key: Optional[str] = Field(None, description="API Key token for agent identity validation")
-    tool_name: str = Field(..., json_schema_extra={"example": "employee_directory"})
-    operation: str = Field("read", json_schema_extra={"example": "read"})
-    requested_fields: List[str] = Field(default_factory=list, json_schema_extra={"example": ["name", "attendance"]})
-    parameters: Dict[str, Any] = Field(default_factory=dict, json_schema_extra={"example": {"department": "Engineering"}})
 
 class SecurityEvaluateResponse(BaseModel):
     decision: DecisionEnum
     allowed: bool
     reason: str
     agent_id: str
-    agent_role: Optional[str] = None
     target_tool: str
-    operation: str
     requested_fields: List[str]
     permitted_fields: List[str]
     denied_fields: List[str]
     redacted_fields: List[str]
-    timestamp: datetime
-    rate_limit_remaining: int
+    agent_role: Optional[str] = None
+    operation: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    rate_limit_remaining: Optional[int] = None
 
 class SecurityExecuteRequest(BaseModel):
-    agent_id: str = Field(..., json_schema_extra={"example": "hr-agent-01"})
-    api_key: Optional[str] = Field(None, description="Secret API key proving agent identity")
-    tool_name: str = Field(..., json_schema_extra={"example": "employee_directory"})
-    operation: str = Field("read", json_schema_extra={"example": "read"})
-    requested_fields: List[str] = Field(default_factory=list, json_schema_extra={"example": ["name", "attendance"]})
-    parameters: Dict[str, Any] = Field(default_factory=dict, json_schema_extra={"example": {"department": "Engineering"}})
+    agent_id: str
+    api_key: str
+    tool_name: str
+    operation: str = "read"
+    requested_fields: List[str] = Field(default_factory=list)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
 
 class SecurityExecuteResponse(BaseModel):
     decision: DecisionEnum
@@ -99,13 +99,13 @@ class SecurityExecuteResponse(BaseModel):
     tool_name: str
     requested_fields: List[str]
     redacted_fields: List[str]
-    raw_result_count: int = 0
+    raw_result_count: int
     enforced_data: Optional[Any] = None
     audit_log_id: Optional[int] = None
     audit_entry_hash: Optional[str] = None
     execution_time_ms: float
 
-# --- Audit Logs ---
+# --- Audit Log Schemas ---
 class AuditLogResponse(BaseModel):
     id: int
     sequence_number: int
@@ -155,6 +155,19 @@ class BenchmarkScenarioResult(BaseModel):
     latency_ms: float
     details: str
 
+class BaselineMetric(BaseModel):
+    name: str
+    description: str
+    attack_success_rate_pct: float
+    attack_prevention_rate_pct: float
+    false_positive_rate_pct: float
+    false_negative_rate_pct: float
+    p50_latency_ms: float
+    p95_latency_ms: float
+    throughput_rps: float
+    enforcement_overhead_ms: float
+    audit_chain_verified: bool
+
 class BenchmarkReport(BaseModel):
     total_scenarios: int
     passed_scenarios: int
@@ -165,3 +178,4 @@ class BenchmarkReport(BaseModel):
     p95_latency_ms: float
     scenarios: List[BenchmarkScenarioResult]
     timestamp: datetime
+    baselines: Optional[List[BaselineMetric]] = None

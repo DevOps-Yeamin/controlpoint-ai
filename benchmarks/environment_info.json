@@ -1,0 +1,9 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python_version": "3.14.7",
+  "processor": "AMD64 Family 23 Model 24 Stepping 1, AuthenticAMD",
+  "machine": "AMD64",
+  "timestamp": "2026-11-24T11:25:54Z",
+  "sqlite_version": "3",
+  "framework": "FastAPI + Pydantic v2 + SQLAlchemy"
+}

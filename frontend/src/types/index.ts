@@ -84,6 +84,20 @@ export interface BenchmarkScenarioResult {
   details: string;
 }
 
+export interface BaselineMetric {
+  name: string;
+  description: string;
+  attack_success_rate_pct: number;
+  attack_prevention_rate_pct: number;
+  false_positive_rate_pct: number;
+  false_negative_rate_pct: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  throughput_rps: number;
+  enforcement_overhead_ms: number;
+  audit_chain_verified: boolean;
+}
+
 export interface BenchmarkReport {
   total_scenarios: number;
   passed_scenarios: number;
@@ -94,6 +108,7 @@ export interface BenchmarkReport {
   p95_latency_ms: number;
   scenarios: BenchmarkScenarioResult[];
   timestamp: string;
+  baselines?: BaselineMetric[];
 }
 
 export interface AuditChainVerifyResponse {
